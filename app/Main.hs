@@ -59,8 +59,9 @@ dotER conf er = graph' $ do
     let optss    = roptions r
         rlab     = A.HtmlLabel . H.Text . htmlFont optss . L.pack . show
         (l1, l2) = (A.TailLabel $ rlab $ card1 r, A.HeadLabel $ rlab $ card2 r)
+        ports = optionsTo optToPort $ optss
         label    = A.Label $ A.HtmlLabel $ H.Text $ withLabelFmt " %s " optss []
-    edge (entity1 r) (entity2 r) [label, l1, l2]
+    edge (entity1 r) (entity2 r) ([label, l1, l2] <> ports)
 
 -- | Converts a single entity to an HTML label.
 htmlEntity :: Entity -> H.Label

@@ -4,7 +4,7 @@ module Erd.ER
   , Entity(..)
   , Attribute(..)
   , Options, mergeOpts, optionsTo
-  , Option(..), optionByName, optToFont, optToHtml, optToLabel
+  , Option(..), optToPort, optionByName, optToFont, optToHtml, optToLabel
   , Relation(..) , Cardinality(..), cardByName
   , defaultAttrOpts, defaultTitleOpts, defaultEntityOpts, defaultHeaderOpts, defaultRelOpts
   )
@@ -17,7 +17,8 @@ import           Data.Word                       (Word8)
 import           Text.Printf                     (printf)
 
 import           Data.GraphViz.Attributes.Colors (Color)
-import qualified Data.GraphViz.Attributes.HTML   as H
+import qualified Data.GraphViz.Attributes.HTML     as H
+import qualified Data.GraphViz.Attributes.Complete as C
 import           Data.GraphViz.Parsing           (ParseDot, parse, runParser)
 
 -- | Represents a single schema.
@@ -64,6 +65,10 @@ mergeOpts opts1 opts2 = opts1 `M.union` opts2
 optionsTo :: (Option -> Maybe a) -> Options -> [a]
 optionsTo f = mapMaybe f . M.elems
 
+-- | Declaration of possible ports so as
+-- to only add one extra constructor to Option
+data PortKind = Tail | Head | Declaration deriving (Eq,Show)
+
 -- | A restricted subset of options in GraphViz that can be configured in
 -- an ER file.
 data Option = Label String
@@ -77,6 +82,7 @@ data Option = Label String
             | CellBorder Word8
             | CellPadding Word8
             | TextAlignment H.Align
+            | Port PortKind C.PortPos
             deriving (Show, Eq)
 
 -- | Given an option name and a string representation of its value,
@@ -95,6 +101,9 @@ optionByName "cellspacing" = optionParse CellSpacing
 optionByName "cellborder" = optionParse CellBorder
 optionByName "cellpadding" = optionParse CellPadding
 optionByName "text-alignment" = optionParse TextAlignment
+optionByName "headport" = optionParse $ Port Head
+optionByName "tailport" = optionParse $ Port Tail
+optionByName "port" = optionParse $ Port Declaration
 optionByName unk = const (Left $ printf "Option '%s' does not exist." unk)
 
 -- | A wrapper around the GraphViz's parser for any particular option.
@@ -122,6 +131,7 @@ optToHtml (CellSpacing w)   = pure $ H.CellSpacing w
 optToHtml (CellBorder w)    = pure $ H.CellBorder w
 optToHtml (CellPadding w)   = pure $ H.CellPadding w
 optToHtml (TextAlignment x) = pure $ H.Align x
+optToHtml (Port Declaration (C.LabelledPort x _ )) = pure $ H.Port x
 optToHtml _                 = Nothing
 
 
@@ -129,6 +139,12 @@ optToHtml _                 = Nothing
 optToLabel :: Option -> Maybe Text
 optToLabel (Label s) = Just $ pack s
 optToLabel _         = Nothing
+
+-- | Selects an option if and only if it corresponds to a port.
+optToPort :: Option -> Maybe C.Attribute
+optToPort (Port Head x) = pure $ C.HeadPort x
+optToPort (Port Tail x) = pure $ C.TailPort x
+optToPort _ = Nothing
 
 -- | Represents a relationship between exactly two entities. After parsing,
 -- each `rel` is guaranteed to correspond to an entity defined in the same
